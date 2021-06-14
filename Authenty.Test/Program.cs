@@ -48,12 +48,12 @@ namespace Authenty.Test
 
                         if (!Success)
                         {
-                            Console.WriteLine(Message); // Specified Error Message
+                            Console.WriteLine("error message: " + Message); // Specified Error Message
                             Console.ReadLine();
                             Environment.Exit(0);
                         }
 
-                        Console.WriteLine(Message); // Variable Value
+                        Console.WriteLine("var: " + Message); // Variable Value
                         
                         Console.WriteLine(GetLicensing.UserInformation.Email);
                         Console.WriteLine(GetLicensing.UserInformation.Username);

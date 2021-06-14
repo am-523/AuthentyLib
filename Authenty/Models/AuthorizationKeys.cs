@@ -8,22 +8,26 @@ namespace Authenty.Models
     /// </summary>
     public class AuthorizationKeys
     {
-        private (string, string) _privAuthKey;
+        private (string, string)? _SessionId = null;
 
         /// <summary>
         /// After the user connects to our servers, a session is created under a private key 
         /// where the user's actions are carefully monitored by our bot. After several hours, 
         /// this key is cleaned from your application.
         /// </summary>
-        public (string name, string key) PrivAuthKey
+        public (string name, string key)? SessionId
         {
-            get => _privAuthKey;
+            get
+            {
+                if (_SessionId == null) throw new ArgumentNullException();
+
+                return _SessionId;
+            }
             set
             {
-                if (value.key.Length != 25)
-                    throw new ApplicationException();
+                if (value?.key.Length != 25) throw new ApplicationException();
 
-                _privAuthKey = (value.name, value.key);
+                _SessionId = (value?.name, value?.key);
             }
         }
 

@@ -81,26 +81,29 @@ namespace Authenty
                 {"HWID-PC", hwid}
             };
 
-            var connectionResponse = _authentyClient.SendAsync(cryptoSessionInfo, appConnectionHeaders).Result;
+            var HttpResponse = _authentyClient.SendAsync(cryptoSessionInfo, appConnectionHeaders).GetAwaiter()
+                .GetResult();
 
-            if (!connectionResponse.IsSuccessStatusCode)
+            if (!HttpResponse.IsSuccessStatusCode)
             {
-                switch (connectionResponse.StatusCode)
+                switch (HttpResponse.StatusCode)
                 {
                     case HttpStatusCode.Unauthorized: throw new AccessDeniedException();
                     case HttpStatusCode.Forbidden: throw new BlackListedApplicationException();
                     case HttpStatusCode.NotFound: throw new ApplicationNotFoundException();
-                    default: throw new UnhandledStatusCodeException(connectionResponse.StatusCode);
+                    default: throw new UnhandledStatusCodeException(HttpResponse.StatusCode);
                 }
             }
 
-            var connectionJsonResponse = JsonConvert.DeserializeObject<AuthentyCustomResponses>(
-                _aesCryptography.Decrypt(connectionResponse.Content.ReadAsStringAsync().Result));
+            var HttpResponseString = _aesCryptography.Decrypt(HttpResponse.Content.ReadAsStringAsync().Result);
+
+            var connectionJsonResponse = JsonConvert.DeserializeObject<AuthentyCustomResponses>(HttpResponseString);
 
             switch (connectionJsonResponse)
             {
                 case {success: false}:
                     throw new Exception("An unexpected error has occurred, contact support if this continues.");
+
                 case {ApplicationEnabled: false}: throw new PausedApplicationException();
 
                 default:
@@ -109,7 +112,7 @@ namespace Authenty
 
                         _authentyClient.SetCommunicationKeys(new AuthorizationKeys
                         {
-                            PrivAuthKey = ("authorization-id", connectionJsonResponse.authorizationKey),
+                            SessionId = ("authorization-id", connectionJsonResponse.authorizationKey),
                             CipherAppKey = ("application-key",
                                 _aesCryptography.Encrypt(_applicationConfig.ApplicationKey)),
                         });
@@ -127,8 +130,7 @@ namespace Authenty
         /// <returns></returns>
         public (bool Success, string Message) Login(string username, string password)
         {
-            if (!_authentyClient.Connected)
-                throw new AuthentyConnectionFailedException();
+            _authentyClient.IsConnected();
 
             var loginParamsInfo = new Dictionary<string, string>
             {
@@ -190,8 +192,7 @@ namespace Authenty
         /// <returns></returns>
         public (bool Success, string Message) Register(string username, string password, string email, string license)
         {
-            if (!_authentyClient.Connected)
-                throw new AuthentyConnectionFailedException();
+            _authentyClient.IsConnected();
 
             var registerParamsInfo = new Dictionary<string, string>
             {
@@ -244,8 +245,7 @@ namespace Authenty
         /// <returns></returns>
         public (bool Success, string Message) LicenseLogin(string license)
         {
-            if (!_authentyClient.Connected)
-                throw new AuthentyConnectionFailedException();
+            _authentyClient.IsConnected();
 
             var licenseLoginParamsInfo = new Dictionary<string, string>
             {
@@ -302,8 +302,7 @@ namespace Authenty
         /// <returns></returns>
         public (bool Success, string Message) ExtendSubscription(string username, string password, string license)
         {
-            if (!_authentyClient.Connected)
-                throw new AuthentyConnectionFailedException();
+            _authentyClient.IsConnected();
 
             var extendSubscriptionParams = new Dictionary<string, string>
             {
@@ -348,8 +347,7 @@ namespace Authenty
         /// <returns></returns>
         public (bool Success, string Message) GetVariable(string variableCode)
         {
-            if (!_authentyClient.Connected)
-                throw new AuthentyConnectionFailedException();
+            _authentyClient.IsConnected();
 
             var remoteVariableParams = new Dictionary<string, string>
             {
@@ -378,15 +376,12 @@ namespace Authenty
             }
 
             if (string.IsNullOrEmpty(remoteVariableResponse?.value))
-                throw new ArgumentNullException();
+                throw new ArgumentNullException("Invalid Variable");
 
-            var variableValue = _remoteVariables.FirstOrDefault(vr => vr.Key.Contains(variableCode)).Value;
-
-            return (true, variableValue switch
-            {
-                null => AddRemoteVariable(variableCode, remoteVariableResponse.value),
-                _ => variableValue
-            });
+            return (Success: true,
+                _remoteVariables.TryGetValue(variableCode, out var value)
+                    ? value
+                    : AddRemoteVariable(variableCode, remoteVariableResponse.value));
         }
 
         private string AddRemoteVariable(string code, string value)

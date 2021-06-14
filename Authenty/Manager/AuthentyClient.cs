@@ -5,22 +5,28 @@ using System.Threading.Tasks;
 using System.Security.Authentication;
 using Authenty.Models;
 using Authenty.Exceptions;
+using System;
 
 namespace Authenty.Manager
 {
     internal class AuthentyClient : Globals
     {
         private AuthorizationKeys _authKeys;
-        internal bool Connected => _httpClient.DefaultRequestHeaders.Contains(_authKeys.PrivAuthKey.name);
 
-
+        internal bool IsConnected()
+        {
+            return !_httpClient.DefaultRequestHeaders.Contains(_authKeys.SessionId?.name)
+                ? throw new AuthentyConnectionFailedException()
+                : true;
+        }
+        
         private readonly HttpClient _httpClient = new HttpClient(new HttpClientHandler
         {
             Proxy = new WebProxy(),
             SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls11,
             ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) =>
                 cert != null && cert.GetPublicKeyString() == IdCertificacionKey
-        })
+        }, false)
         {
             BaseAddress = ApiUrl
         };
@@ -29,7 +35,7 @@ namespace Authenty.Manager
         {
             _authKeys = authKeys;
 
-            _httpClient.DefaultRequestHeaders.Add(authKeys.PrivAuthKey.name, authKeys.PrivAuthKey.key);
+            _httpClient.DefaultRequestHeaders.Add(authKeys.SessionId?.name, authKeys.SessionId?.key);
             _httpClient.DefaultRequestHeaders.Add(authKeys.CipherAppKey.name, authKeys.CipherAppKey.key);
         }
 
@@ -38,28 +44,27 @@ namespace Authenty.Manager
         {
             try
             {
-                var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "/authenty/csharp/v2")
+                var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "/authenty/csharp/v2/")
                 {
                     Content = new FormUrlEncodedContent(formData)
                 };
 
-                if (headers == null) return await _httpClient.SendAsync(httpRequestMessage);
+                if (headers != null)
+                    foreach (var i in headers)
+                        _httpClient.DefaultRequestHeaders.Add(i.Key, i.Value);
 
-                foreach (var i in headers)
-                    _httpClient.DefaultRequestHeaders.Add(i.Key, i.Value);
+                var httpResponse = await _httpClient.SendAsync(httpRequestMessage);
 
-                using var HttpResponse = await _httpClient.SendAsync(httpRequestMessage);
-
-                if (!HttpResponse.IsSuccessStatusCode)
+                if (!httpResponse.IsSuccessStatusCode)
                 {
-                    switch (HttpResponse.StatusCode)
+                    switch (httpResponse.StatusCode)
                     {
                         case HttpStatusCode.NotAcceptable: throw new ApplicationTamperedException();
                         case HttpStatusCode.ServiceUnavailable: throw new UnderMaintenanceException();
                     };
                 }
 
-                return HttpResponse;
+                return httpResponse;
             }
             catch
             {
