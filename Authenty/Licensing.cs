@@ -61,7 +61,6 @@ namespace Authenty
 
             _aesCryptography = new AesCryptography();
             _authentyClient = new AuthentyClient();
-            //_httpRequestManager = new HttpRequestManager();
 
             var hwid = new UIDManager().Id;
 
@@ -86,15 +85,13 @@ namespace Authenty
 
             if (!connectionResponse.IsSuccessStatusCode)
             {
-                throw connectionResponse.StatusCode switch
+                switch (connectionResponse.StatusCode)
                 {
-                    HttpStatusCode.Unauthorized => new AccessDeniedException(),
-                    HttpStatusCode.Forbidden => new BlackListedApplicationException(),
-                    HttpStatusCode.NotFound => new ApplicationNotFoundException(),
-                    HttpStatusCode.NotAcceptable => new ApplicationTamperedException(),
-                    _ => new UnhandledException(
-                        "An unexpected error occurred, please check your internet connection. If this error persists, contact a developer.")
-                };
+                    case HttpStatusCode.Unauthorized: throw new AccessDeniedException();
+                    case HttpStatusCode.Forbidden: throw new BlackListedApplicationException();
+                    case HttpStatusCode.NotFound: throw new ApplicationNotFoundException();
+                    default: throw new UnhandledStatusCodeException(connectionResponse.StatusCode);
+                }
             }
 
             var connectionJsonResponse = JsonConvert.DeserializeObject<AuthentyCustomResponses>(
@@ -176,9 +173,6 @@ namespace Authenty
             if (!string.IsNullOrEmpty(loginResponse.updaterVersion) && !string.IsNullOrEmpty(loginResponse.updaterLink))
                 throw new OutdatedAppException(loginResponse.updaterLink);
 
-            // if (loginResponse.InvalidApplicationHash) // Application Hash Checker API-Based
-            //     throw new UnauthorizedAccessException("The hash of this application is different from the original, if this is an error, contact a developer.");
-
             return (true, "You have successfully logged in!");
         }
 
@@ -239,9 +233,6 @@ namespace Authenty
             if (!string.IsNullOrEmpty(registerResponse.updaterVersion) &&
                 !string.IsNullOrEmpty(registerResponse.updaterLink))
                 throw new OutdatedAppException(registerResponse.updaterLink);
-            else if (registerResponse.InvalidApplicationHash) // Application Hash Checker API-Based
-                throw new UnauthorizedAccessException(
-                    "The hash of this application is different from the original, if this is an error, contact a developer.");
 
             return (true, "You have been registered successfully!");
         }
@@ -298,9 +289,6 @@ namespace Authenty
             if (!string.IsNullOrEmpty(licenseLoginResponse.updaterVersion) &&
                 !string.IsNullOrEmpty(licenseLoginResponse.updaterLink))
                 throw new OutdatedAppException(licenseLoginResponse.updaterLink);
-
-            // if (licenseLoginResponse.InvalidApplicationHash) // Application Hash Checker API-Based
-            //     throw new UnauthorizedAccessException("The hash of this application is different from the original, if this is an error, contact a developer.");
 
             return (true, "You have successfully logged in!");
         }

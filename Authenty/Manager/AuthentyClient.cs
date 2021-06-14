@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Security.Authentication;
 using Authenty.Models;
+using Authenty.Exceptions;
 
 namespace Authenty.Manager
 {
@@ -37,7 +38,7 @@ namespace Authenty.Manager
         {
             try
             {
-                var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "/authenty/csharp/")
+                var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "/authenty/csharp/v2")
                 {
                     Content = new FormUrlEncodedContent(formData)
                 };
@@ -47,7 +48,18 @@ namespace Authenty.Manager
                 foreach (var i in headers)
                     _httpClient.DefaultRequestHeaders.Add(i.Key, i.Value);
 
-                return await _httpClient.SendAsync(httpRequestMessage);
+                using var HttpResponse = await _httpClient.SendAsync(httpRequestMessage);
+
+                if (!HttpResponse.IsSuccessStatusCode)
+                {
+                    switch (HttpResponse.StatusCode)
+                    {
+                        case HttpStatusCode.NotAcceptable: throw new ApplicationTamperedException();
+                        case HttpStatusCode.ServiceUnavailable: throw new UnderMaintenanceException();
+                    };
+                }
+
+                return HttpResponse;
             }
             catch
             {

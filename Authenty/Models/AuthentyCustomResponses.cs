@@ -40,7 +40,5 @@ namespace Authenty.Models
 
         public string updaterVersion { get; set; } = null;
         public string updaterLink { get; set; } = null;
-
-        public bool InvalidApplicationHash { get; set; } = false;
     }
 }
