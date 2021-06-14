@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Authenty.Models.Sessions
 {
@@ -11,7 +9,7 @@ namespace Authenty.Models.Sessions
 
         public string username
         {
-            get { return _username; }
+            get => _username;
             set
             {
                 if (string.IsNullOrEmpty(value))
@@ -25,7 +23,7 @@ namespace Authenty.Models.Sessions
 
         public string password
         {
-            get { return _password; }
+            get => _password;
             set
             {
                 if (string.IsNullOrEmpty(value))

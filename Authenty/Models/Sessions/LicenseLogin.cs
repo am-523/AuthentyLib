@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Authenty.Models.Sessions
 {
@@ -10,7 +8,7 @@ namespace Authenty.Models.Sessions
 
         public string license
         {
-            get { return _license; }
+            get => _license;
             set
             {
                 if (string.IsNullOrEmpty(value))

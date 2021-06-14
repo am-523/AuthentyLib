@@ -1,22 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Authenty.Models.Sessions
 {
     public class RemoteVariable
     {
-        private string _SecretCode;
+        private string _secretCode;
 
         public string SecretCode
         {
-            get { return _SecretCode; }
+            get => _secretCode;
             set
             {
                 if (string.IsNullOrEmpty(value))
                     throw new ArgumentNullException();
 
-                _SecretCode = value;
+                _secretCode = value;
             }
         }
     }

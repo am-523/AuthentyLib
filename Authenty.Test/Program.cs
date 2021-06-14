@@ -22,8 +22,6 @@ namespace Authenty.Test
             });
 
 
-            Console.ReadLine();
-
             GetLicensing.Connect();
 
             Console.WriteLine("1. Login");
@@ -36,9 +34,9 @@ namespace Authenty.Test
                     Console.Clear();
 
                     Console.Write("user: ");
-                    string user = Console.ReadLine();
+                    var user = Console.ReadLine();
                     Console.Write("password: ");
-                    string pass = Console.ReadLine();
+                    var pass = Console.ReadLine();
 
                     (bool SuccessLogged, string ServerMessage) = GetLicensing.Login(user, pass);
 
@@ -50,13 +48,18 @@ namespace Authenty.Test
 
                         if (!Success)
                         {
-                            Console.WriteLine(Message); // Specific Error Message
+                            Console.WriteLine(Message); // Specified Error Message
                             Console.ReadLine();
                             Environment.Exit(0);
                         }
 
-                        Console.WriteLine(Message); // Successfully Logged Message
-
+                        Console.WriteLine(Message); // Variable Value
+                        
+                        Console.WriteLine(GetLicensing.UserInformation.Email);
+                        Console.WriteLine(GetLicensing.UserInformation.Username);
+                        Console.WriteLine(GetLicensing.UserInformation.Hwid);
+                        Console.WriteLine(GetLicensing.UserInformation.Level);
+                        Console.WriteLine(GetLicensing.UserInformation.ExpireDate);
                     }
                     else
                     {

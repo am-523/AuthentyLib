@@ -1,31 +1,29 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Authenty.Models.HTTPRequests
+namespace Authenty.Models
 {
     /// <summary>
     /// Protecting your application against any threat, the requests that 
     /// are made after connecting will be integrated into the Headers ; More information below.
     /// </summary>
-    public class HTTPCommunicationRequests
+    public class AuthorizationKeys
     {
-        private string _SecuredAuthorizationKey;
+        private (string, string) _privAuthKey;
 
         /// <summary>
         /// After the user connects to our servers, a session is created under a private key 
         /// where the user's actions are carefully monitored by our bot. After several hours, 
         /// this key is cleaned from your application.
         /// </summary>
-        public string SecuredAuthorizationKey
+        public (string name, string key) PrivAuthKey
         {
-            get { return _SecuredAuthorizationKey; }
+            get => _privAuthKey;
             set
             {
-                if (value.Length != 25)
+                if (value.key.Length != 25)
                     throw new ApplicationException();
 
-                _SecuredAuthorizationKey = value;
+                _privAuthKey = (value.name, value.key);
             }
         }
 
@@ -33,6 +31,6 @@ namespace Authenty.Models.HTTPRequests
         /// After connecting, the key of your application is sent through the Headers using 
         /// a high-power standard encryption, to guarantee the security of your application.
         /// </summary>
-        public string SecuredApplicationKey { get; set; }
+        public (string name, string key) CipherAppKey { get; set; }
     }
 }

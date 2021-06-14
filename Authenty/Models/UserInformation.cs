@@ -1,9 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Authenty.Models
 {
+    public static class UserInfo
+    {
+        private static readonly Lazy<UserInformation> Lazy = new Lazy<UserInformation>(()
+            => new UserInformation());
+        public static UserInformation Instance => Lazy.Value;
+    }
+
     public class UserInformation
     {
         private int? _Level = null;
@@ -14,22 +19,21 @@ namespace Authenty.Models
 
         public int? Level
         {
-            get { return _Level ?? 1; } // default level = 1
+            get => _Level ?? 1; // default level = 1
             set
             {
-                if (value != null)
-                {
-                    if (value < 1 || value > 10)
-                        throw new ArgumentOutOfRangeException("The user level must be a number greater than 0 and equal to or less than 10.");
+                if (value == null) return;
+                if (value < 1 || value > 10)
+                    throw new ArgumentOutOfRangeException(
+                        "The user level must be a number greater than 0 and equal to or less than 10.");
 
-                    _Level = value;
-                }
+                _Level = value;
             }
         }
 
         public string Username
         {
-            get { return _Username; }
+            get => _Username ?? throw new ArgumentNullException();
             set
             {
                 if (string.IsNullOrEmpty(value))
@@ -41,7 +45,7 @@ namespace Authenty.Models
 
         public string Email
         {
-            get { return _Email; }
+            get => _Email ?? throw new ArgumentNullException();
             set
             {
                 if (string.IsNullOrEmpty(value))
@@ -53,18 +57,18 @@ namespace Authenty.Models
 
         public string ExpireDate
         {
-            get { return _ExpireDate; }
-            set
-            {
-                _ExpireDate = value ?? "Lifetime";
-            }
+            get => _ExpireDate;
+            set => _ExpireDate = value ?? "Lifetime";
         }
 
-        public string HWID
+        public string Hwid
         {
-            get { return _HWID; }
+            get => _HWID ?? null;
             set
             {
+                if (string.IsNullOrEmpty(value))
+                    throw new ArgumentNullException("Invalid HWID Format");
+
                 _HWID = value;
             }
         }

@@ -1,22 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace Authenty.Helpers
 {
     public class Md5Hash
     {
-        public static string CalculateFile(string location)
+        public static string CurrentMd5File
         {
-            using (var md5Instance = MD5.Create())
+            get
             {
-                using (var stream = File.OpenRead(location))
-                {
-                    var hashResult = md5Instance.ComputeHash(stream);
-                    return BitConverter.ToString(hashResult).Replace("-", "").ToLowerInvariant();
-                }
+                using var md5Instance = MD5.Create();
+                using var stream = File.OpenRead(Process.GetCurrentProcess().MainModule.FileName);
+                var hashResult = md5Instance.ComputeHash(stream);
+                return BitConverter.ToString(hashResult).Replace("-", "").ToLowerInvariant();
             }
         }
     }

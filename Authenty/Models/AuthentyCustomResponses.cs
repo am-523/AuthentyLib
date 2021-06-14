@@ -1,17 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Authenty.Models
 {
     public class AuthentyCustomResponses
     {
-        public string _errorCode;
-        public int? _level = null;
+        private string _errorCode;
+        private int? _level;
 
         public string errorCode
         {
-            get { return _errorCode; }
+            get => _errorCode;
             set
             {
                 _errorCode = value.Trim() switch
@@ -26,11 +24,8 @@ namespace Authenty.Models
 
         public int? level
         {
-            get { return _level ?? 1; }
-            set
-            {
-                _level = value;
-            }
+            get => _level ?? 1;
+            set => _level = value;
         }
 
         public bool success { get; set; } = false;
