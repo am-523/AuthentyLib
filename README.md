@@ -1,7 +1,7 @@
 ## Authenty .NET Standard Library (https://biitez.dev/services/authenty)
 
-[![GitHub Release](https://img.shields.io/github/release/biitez/AuthentyLib.svg)](https://github.com/biitez/AuthentyLib/releases)
-[![GitHub License](https://img.shields.io/github/license/biitez/AuthentyLib.svg)](https://github.com/biitez/AuthentyLib/blob/master/LICENSE)
+[![GitHub Latest Release](https://img.shields.io/github/v/release/biitez/AuthentyLib.svg)](https://github.com/biitez/AuthentyLib/releases)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
 ### Features:
 - Built using .NET Standard 2.0
@@ -48,6 +48,24 @@ if (SuccessLogged) {
    Console.WriteLine(ServerMessage); // Prints an error message
 }
 
+```
+
+
+```
+Compatibilities:
+ _____________________________________________________________________
+|                        |                                            |
+|     Implementation     |                 Version                    |
+|________________________|____________________________________________|
+|                        |                                            |
+| .NET Core & .NET 5.0   | 2.0 - 2.1 - 2.2 - 3.0 - 3.1 - 5.0          |
+| .NET Framework         | 4.6.1 - 4.6.2 - 4.7 - 4.7.1 - 4.7.2 - 4.8  |
+|  Mono                  | 5.4 - 6.4                                  |
+|  Xamarin.iOS           | 10.14 - 12.16                              |
+|  Xamarin.Android       | 8.0 - 10.0                                 |
+|  Uni. Windows Platform | 10.0.16299 - TBD                           |
+|  Unity                 | 2018.1                                     |
+|________________________|____________________________________________|
 ```
 
 ##### This library is much more recommended than using the class in your project.
