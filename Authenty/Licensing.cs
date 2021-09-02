@@ -8,6 +8,8 @@ using Authenty.Helpers;
 using Newtonsoft.Json;
 using Authenty.Exceptions;
 using System.Linq;
+using System.Text.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Authenty
 {
@@ -27,7 +29,7 @@ namespace Authenty
     /// |  Uni. Windows Platform | 10.0.16299 - TBD                           |
     /// |  Unity                 | 2018.1                                     |
     /// |________________________|____________________________________________|
-    ///               Made with love by https://github.com/biitez 
+    ///               Made with love by https://github.com/biitez
     ///                 
     /// </summary>
     public class Licensing
@@ -38,6 +40,8 @@ namespace Authenty
         private RsaCryptography _rsaCryptography;
         private AesCryptography _aesCryptography;
         private AuthentyClient _authentyClient;
+        private KeysResponse _KeysResponse;
+
         public UserInformation UserInformation = UserInfo.Instance;
 
         /// <summary>
@@ -53,7 +57,7 @@ namespace Authenty
         /// Connect to the server and create a session using the information from your application.
         /// </summary>
         /// <returns></returns>
-        public Licensing Connect()
+        public void Connect()
         {
             _rsaCryptography = new RsaCryptography(
                 new System.Security.Cryptography.X509Certificates.X509Certificate2(
@@ -86,39 +90,38 @@ namespace Authenty
 
             if (!HttpResponse.IsSuccessStatusCode)
             {
-                switch (HttpResponse.StatusCode)
+                throw HttpResponse.StatusCode switch
                 {
-                    case HttpStatusCode.Unauthorized: throw new AccessDeniedException();
-                    case HttpStatusCode.Forbidden: throw new BlackListedApplicationException();
-                    case HttpStatusCode.NotFound: throw new ApplicationNotFoundException();
-                    default: throw new UnhandledStatusCodeException(HttpResponse.StatusCode);
-                }
+                    HttpStatusCode.Unauthorized => new AccessDeniedException(),
+                    HttpStatusCode.Forbidden => new BlackListedApplicationException(),
+                    HttpStatusCode.NotFound => new ApplicationNotFoundException(),
+                    _ => new UnhandledStatusCodeException(HttpResponse.StatusCode),
+                };
             }
 
             var HttpResponseString = _aesCryptography.Decrypt(HttpResponse.Content.ReadAsStringAsync().Result);
 
-            var connectionJsonResponse = JsonConvert.DeserializeObject<AuthentyCustomResponses>(HttpResponseString);
-
-            switch (connectionJsonResponse)
+            JToken _jsonElement = JObject.Parse(HttpResponseString);
+            
+            if (!(bool)_jsonElement.SelectToken("success"))
             {
-                case {success: false}:
-                    throw new Exception("An unexpected error has occurred, contact support if this continues.");
-
-                case {ApplicationEnabled: false}: throw new PausedApplicationException();
-
-                default:
-
-                    if (connectionJsonResponse != null)
-
-                        _authentyClient.SetCommunicationKeys(new AuthorizationKeys
-                        {
-                            SessionId = ("authorization-id", connectionJsonResponse.authorizationKey),
-                            CipherAppKey = ("application-key",
-                                _aesCryptography.Encrypt(_applicationConfig.ApplicationKey)),
-                        });
-
-                    return this;
+                throw new Exception("An unexpected error has occurred, contact support if this continues.");
             }
+
+            if (!(bool)_jsonElement.SelectToken("ApplicationEnabled"))
+            {
+                throw new PausedApplicationException();
+            }
+
+            string AuthorizationKey = (string)_jsonElement.SelectToken("authorizationKey") 
+                ?? throw new NullReferenceException("Invalid Authorization Key");
+
+            _authentyClient.SetCommunicationKeys(new AuthorizationKeys
+            {
+                SessionId = ("authorization-id", AuthorizationKey),
+                CipherAppKey = ("application-key",
+                    _aesCryptography.Encrypt(_applicationConfig.ApplicationKey)),
+            });
         }
 
         /// <summary>
@@ -145,35 +148,50 @@ namespace Authenty
                 {"type", "login"}
             };
 
-            var loginResponse =
-                JsonConvert.DeserializeObject<AuthentyCustomResponses>(_aesCryptography.Decrypt(_authentyClient
-                    .SendAsync(loginParamsInfo).GetAwaiter().GetResult().Content.ReadAsStringAsync().Result));
+            var LoginResponseString = _aesCryptography.Decrypt(_authentyClient
+                    .SendAsync(loginParamsInfo).GetAwaiter().GetResult().Content.ReadAsStringAsync().Result);
 
-            if (loginResponse is {success: false})
+            JToken _jsonLoginElement = JObject.Parse(LoginResponseString);
+
+            if (!(bool)_jsonLoginElement.SelectToken("success"))
             {
-                return (false, loginResponse.errorCode switch
+                _KeysResponse = new KeysResponse
+                {
+                    errorCode = (string)_jsonLoginElement.SelectToken("errorCode")
+                };
+
+                return (false, _KeysResponse.errorCode switch
                 {
                     "INVALID_USERNAME_OR_PASSWORD" => "Invalid username/password",
                     "INVALID_HWID" =>
                         "The HWID registered in this account is different. Contact support if you think this is a error.",
                     "EXPIRED_SUBSCRIPTION" => "Your account subscription has ended!",
-                    "USER_BANNED" => $"You are banned from this application. Reason: {loginResponse.bannedReason}",
+                    "USER_BANNED" => $"You are banned from this application. Reason: {(string)_jsonLoginElement.SelectToken("bannedReason")}",
                     _ => throw new InvalidOperationException()
                 });
             }
 
+            string UserEmailObject = (string)_jsonLoginElement.SelectToken("email");
+            string UserNameObject = (string)_jsonLoginElement.SelectToken("username");
+            string UserExpireObject = (string)_jsonLoginElement.SelectToken("expiredate");
+            int? UserLevelObject = (int?)_jsonLoginElement.SelectToken("level") ?? 1;
+            string UserHwidObject = (string)_jsonLoginElement.SelectToken("hwid");
+
             UserInformation = new UserInformation
             {
-                Email = loginResponse.email,
-                Username = loginResponse.username,
-                ExpireDate = loginResponse.expiredate,
-                Level = loginResponse.level,
-                Hwid = loginResponse.hwid
+                Email = UserEmailObject,
+                Username = UserNameObject,
+                ExpireDate = UserExpireObject,
+                Level = UserLevelObject,
+                Hwid = UserHwidObject
             };
 
+            string updaterVersion = (string)_jsonLoginElement.SelectToken("updaterVersion");
+            string updaterLink = (string)_jsonLoginElement.SelectToken("updaterLink");
+
             // AutoUpdater only works after the user logs in to prevent third-party downloads
-            if (!string.IsNullOrEmpty(loginResponse.updaterVersion) && !string.IsNullOrEmpty(loginResponse.updaterLink))
-                throw new OutdatedAppException(loginResponse.updaterLink);
+            if (!string.IsNullOrEmpty(updaterVersion) && !string.IsNullOrEmpty(updaterLink))
+                throw new OutdatedAppException(updaterLink);
 
             return (true, "You have successfully logged in!");
         }
@@ -206,13 +224,20 @@ namespace Authenty
                 {"type", "register"}
             };
 
-            var registerResponse =
-                JsonConvert.DeserializeObject<AuthentyCustomResponses>(_aesCryptography.Decrypt(_authentyClient
-                    .SendAsync(registerParamsInfo).GetAwaiter().GetResult().Content.ReadAsStringAsync().Result));
+            var RegisterResponseString = _aesCryptography.Decrypt(_authentyClient
+                    .SendAsync(registerParamsInfo).GetAwaiter().GetResult().Content.ReadAsStringAsync().Result);
 
-            if (registerResponse is {success: false})
+            JToken _jsonRegisterElement = JObject.Parse(RegisterResponseString);
+
+            //var _J =
+            //    JsonConvert.DeserializeObject<AuthentyCustomResponses>(_aesCryptography.Decrypt(_authentyClient
+            //        .SendAsync(registerParamsInfo).GetAwaiter().GetResult().Content.ReadAsStringAsync().Result));
+
+            if (!(bool)_jsonRegisterElement.SelectToken("success"))
             {
-                return (false, registerResponse.errorCode switch
+                _KeysResponse.errorCode = (string)_jsonRegisterElement.SelectToken("errorCode");
+
+                return (false, _KeysResponse.errorCode switch
                 {
                     "ALREADY_USED_USERNAME_OR_EMAIL" => "The username and/or email is already used.",
                     "ALREADY_USED" => "The license entered has already been used.",
@@ -221,19 +246,27 @@ namespace Authenty
                 });
             }
 
+            string UserEmailObject = (string)_jsonRegisterElement.SelectToken("email");
+            string UserNameObject = (string)_jsonRegisterElement.SelectToken("username");
+            string UserExpireObject = (string)_jsonRegisterElement.SelectToken("expiredate");
+            int? UserLevelObject = (int?)_jsonRegisterElement.SelectToken("level") ?? 1;
+            string UserHwidObject = (string)_jsonRegisterElement.SelectToken("hwid");
+
             UserInformation = new UserInformation
             {
-                Email = registerResponse.email,
-                Username = registerResponse.username,
-                ExpireDate = registerResponse.expiredate,
-                Level = registerResponse.level,
-                Hwid = registerResponse.hwid
+                Email = UserEmailObject,
+                Username = UserNameObject,
+                ExpireDate = UserExpireObject,
+                Level = UserLevelObject,
+                Hwid = UserHwidObject
             };
 
+            string updaterVersion = (string)_jsonRegisterElement.SelectToken("updaterVersion");
+            string updaterLink = (string)_jsonRegisterElement.SelectToken("updaterLink");
+
             // AutoUpdater only works after the user logs in to prevent third-party downloads
-            if (!string.IsNullOrEmpty(registerResponse.updaterVersion) &&
-                !string.IsNullOrEmpty(registerResponse.updaterLink))
-                throw new OutdatedAppException(registerResponse.updaterLink);
+            if (!string.IsNullOrEmpty(updaterVersion) && !string.IsNullOrEmpty(updaterLink))
+                throw new OutdatedAppException(updaterLink);
 
             return (true, "You have been registered successfully!");
         }
@@ -257,38 +290,54 @@ namespace Authenty
                 {"type", "licenseLogin"}
             };
 
+            //var licenseLoginResponse =
+            //    JsonConvert.DeserializeObject<AuthentyCustomResponses>(
+            //        _aesCryptography.Decrypt(_authentyClient.SendAsync(licenseLoginParamsInfo).GetAwaiter().GetResult()
+            //            .Content.ReadAsStringAsync().Result));
+            
             var licenseLoginResponse =
-                JsonConvert.DeserializeObject<AuthentyCustomResponses>(
                     _aesCryptography.Decrypt(_authentyClient.SendAsync(licenseLoginParamsInfo).GetAwaiter().GetResult()
-                        .Content.ReadAsStringAsync().Result));
+                        .Content.ReadAsStringAsync().Result);
 
-            if (licenseLoginResponse is {success: false})
+            JToken _jsonLicenseLoginElement = JObject.Parse(licenseLoginResponse);
+
+            if (!(bool)_jsonLicenseLoginElement.SelectToken("success"))
             {
-                return (false, licenseLoginResponse.errorCode switch
+                _KeysResponse.errorCode = (string)_jsonLicenseLoginElement.SelectToken("errorCode");
+
+                return (false, _KeysResponse.errorCode switch
                 {
                     "INVALID_HWID" =>
                         "The HWID registered in this account is different. Contact support if you think this is a error.",
                     "EXPIRED_SUBSCRIPTION" => "Your account subscription has ended!",
                     "INVALID_LICENSE" => "The entered license is invalid!",
                     "USER_BANNED" => string.Format("You are banned from this application. Reason: {0}",
-                        licenseLoginResponse.bannedReason),
+                        (string)_jsonLicenseLoginElement.SelectToken("bannedReason")),
                     _ => throw new InvalidOperationException()
                 });
             }
 
+            string UserEmailObject = (string)_jsonLicenseLoginElement.SelectToken("email");
+            string UserNameObject = (string)_jsonLicenseLoginElement.SelectToken("username");
+            string UserExpireObject = (string)_jsonLicenseLoginElement.SelectToken("expiredate");
+            int? UserLevelObject = (int?)_jsonLicenseLoginElement.SelectToken("level") ?? 1;
+            string UserHwidObject = (string)_jsonLicenseLoginElement.SelectToken("hwid");
+
             UserInformation = new UserInformation
             {
-                Email = licenseLoginResponse.email,
-                Username = licenseLoginResponse.username,
-                ExpireDate = licenseLoginResponse.expiredate,
-                Level = licenseLoginResponse.level,
-                Hwid = licenseLoginResponse.hwid
+                Email = UserEmailObject,
+                Username = UserNameObject,
+                ExpireDate = UserExpireObject,
+                Level = UserLevelObject,
+                Hwid = UserHwidObject
             };
 
+            string updaterVersion = (string)_jsonLicenseLoginElement.SelectToken("updaterVersion");
+            string updaterLink = (string)_jsonLicenseLoginElement.SelectToken("updaterLink");
+
             // AutoUpdater only works after the user logs in to prevent third-party downloads
-            if (!string.IsNullOrEmpty(licenseLoginResponse.updaterVersion) &&
-                !string.IsNullOrEmpty(licenseLoginResponse.updaterLink))
-                throw new OutdatedAppException(licenseLoginResponse.updaterLink);
+            if (!string.IsNullOrEmpty(updaterVersion) && !string.IsNullOrEmpty(updaterLink))
+                throw new OutdatedAppException(updaterLink);
 
             return (true, "You have successfully logged in!");
         }
@@ -320,17 +369,18 @@ namespace Authenty
                 _authentyClient.SendAsync(extendSubscriptionParams).GetAwaiter().GetResult().Content.ReadAsStringAsync()
                     .Result);
 
-            var extendSubscriptionResponse =
-                JsonConvert.DeserializeObject<AuthentyCustomResponses>(extendSubscriptionServerResponse);
+            JToken _jsonExtendSubElement = JObject.Parse(extendSubscriptionServerResponse);
 
-            if (extendSubscriptionResponse is {success: false})
+            if (!(bool)_jsonExtendSubElement.SelectToken("success"))
             {
-                return (false, extendSubscriptionResponse.errorCode switch
+                _KeysResponse.errorCode = (string)_jsonExtendSubElement.SelectToken("errorCode");
+
+                return (false, _KeysResponse.errorCode switch
                 {
                     "INVALID_USERNAME_OR_PASSWORD" =>
                         "The HWID registered in this account is different. Contact support if you think this is a error.",
                     "USER_BANNED" =>
-                        $"You are banned from this application. Reason: {extendSubscriptionResponse.bannedReason}",
+                        $"You are banned from this application. Reason: {(string)_jsonExtendSubElement.SelectToken("bannedReason")}",
                     "INVALID_LICENSE" => "The entered license is invalid!",
                     _ => throw new InvalidOperationException()
                 });
@@ -360,28 +410,31 @@ namespace Authenty
             };
 
             var remoteVariableResponse =
-                JsonConvert.DeserializeObject<AuthentyCustomResponses>(
                     _aesCryptography.Decrypt(_authentyClient.SendAsync(remoteVariableParams).GetAwaiter().GetResult()
-                        .Content.ReadAsStringAsync().Result));
+                        .Content.ReadAsStringAsync().Result);
 
-            if (remoteVariableResponse is {success: false})
+            JToken _jsonVarResponseElement = JObject.Parse(remoteVariableResponse);
+
+            if (!(bool)_jsonVarResponseElement.SelectToken("success"))
             {
-                return (false, remoteVariableResponse.errorCode switch
+                _KeysResponse.errorCode = (string)_jsonVarResponseElement.SelectToken("errorCode");
+
+                return (false, _KeysResponse.errorCode switch
                 {
                     "UNFOUND_VARIABLE" => throw new InvalidOperationException(
-                        "Variable not found, closing application for security reasons ..."),
+                        "The variable is not valid, please make sure to enter a correct ID."),
                     "NO_LOGGED" => "You need to be logged in to grab secure-remote variables from the server!",
                     _ => throw new InvalidOperationException()
                 });
             }
 
-            if (string.IsNullOrEmpty(remoteVariableResponse?.value))
-                throw new ArgumentNullException("Invalid Variable");
+            var RemoteVariable = (string)_jsonVarResponseElement.SelectToken("value") 
+                ?? throw new ArgumentNullException("Invalid Variable");
 
             return (Success: true,
                 _remoteVariables.TryGetValue(variableCode, out var value)
                     ? value
-                    : AddRemoteVariable(variableCode, remoteVariableResponse.value));
+                    : AddRemoteVariable(variableCode, RemoteVariable));
         }
 
         private string AddRemoteVariable(string code, string value)

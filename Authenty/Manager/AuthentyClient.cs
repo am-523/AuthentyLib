@@ -9,17 +9,28 @@ using System;
 
 namespace Authenty.Manager
 {
+    /// <summary>
+    /// From here the requests to the API will be made.
+    /// </summary>
     internal class AuthentyClient : Globals
     {
+        /// <summary>
+        /// User authorization keys
+        /// </summary>
         private AuthorizationKeys _authKeys;
 
+        /// <summary>
+        /// Checks if the client has connected to the server 
+        /// before performing the authentication methods.
+        /// </summary>
+        /// <returns>Successfully Connected (boolean)</returns>
         internal bool IsConnected()
         {
             return !_httpClient.DefaultRequestHeaders.Contains(_authKeys.SessionId?.name)
                 ? throw new AuthentyConnectionFailedException()
                 : true;
         }
-        
+
         private readonly HttpClient _httpClient = new HttpClient(new HttpClientHandler
         {
             Proxy = new WebProxy(),
