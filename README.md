@@ -1,7 +1,7 @@
 ## Authenty .NET Standard Library (https://biitez.dev/services/authenty)
 
-[![GitHub release](https://img.shields.io/github/release/biitez/AuthentyLib.svg)](https://github.com/biitez/AuthentyLib/releases)
-
+[![GitHub Release](https://img.shields.io/github/release/biitez/AuthentyLib.svg)](https://github.com/biitez/AuthentyLib/releases)
+[![GitHub License](https://img.shields.io/github/license/biitez/AuthentyLib.svg)](https://github.com/biitez/AuthentyLib/blob/master/LICENSE)
 
 ### Features:
 - Built using .NET Standard 2.0
