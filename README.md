@@ -50,6 +50,24 @@ if (SuccessLogged) {
 
 ```
 
+
+```
+Compatibilities:
+ _____________________________________________________________________
+|                        |                                            |
+|     Implementation     |                 Version                    |
+|________________________|____________________________________________|
+|                        |                                            |
+| .NET Core & .NET 5.0   | 2.0 - 2.1 - 2.2 - 3.0 - 3.1 - 5.0          |
+| .NET Framework         | 4.6.1 - 4.6.2 - 4.7 - 4.7.1 - 4.7.2 - 4.8  |
+|  Mono                  | 5.4 - 6.4                                  |
+|  Xamarin.iOS           | 10.14 - 12.16                              |
+|  Xamarin.Android       | 8.0 - 10.0                                 |
+|  Uni. Windows Platform | 10.0.16299 - TBD                           |
+|  Unity                 | 2018.1                                     |
+|________________________|____________________________________________|
+```
+
 ##### This library is much more recommended than using the class in your project.
 
 ### Contributions, reports or suggestions
