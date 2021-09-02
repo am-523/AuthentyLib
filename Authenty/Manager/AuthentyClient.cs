@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using System.Security.Authentication;
 using Authenty.Models;
 using Authenty.Exceptions;
-using System;
 
 namespace Authenty.Manager
 {

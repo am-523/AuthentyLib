@@ -7,8 +7,6 @@ using System.Collections.Generic;
 using Authenty.Helpers;
 using Newtonsoft.Json;
 using Authenty.Exceptions;
-using System.Linq;
-using System.Text.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Authenty
